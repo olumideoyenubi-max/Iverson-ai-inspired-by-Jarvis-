@@ -12,7 +12,10 @@ export type IversonSettings = {
   wakeWordEnabled: boolean;
   selectedVoiceURI: string | null;
   userName: string;
+  hudTheme: HudTheme;
 };
+
+export type HudTheme = "cyan" | "violet";
 
 const SETTINGS_KEY = "iverson.settings.v1";
 const NOTES_KEY = "iverson.notes.v1";
@@ -27,6 +30,7 @@ export const defaultSettings: IversonSettings = {
   wakeWordEnabled: false,
   selectedVoiceURI: null,
   userName: "Sir",
+  hudTheme: "cyan",
 };
 
 export function loadSettings(): IversonSettings {

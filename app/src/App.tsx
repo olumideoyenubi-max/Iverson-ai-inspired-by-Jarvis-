@@ -1,7 +1,12 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import BootSequence from "./components/BootSequence";
 import TopBar from "./components/TopBar";
-import ArcReactor from "./components/ArcReactor";
+import HudCore from "./components/HudCore";
+import { NodeIcons } from "./components/nodeIcons";
+import type { HudNode } from "./components/HudCore";
+import ClockWidget from "./components/ClockWidget";
+import WeatherWidget from "./components/WeatherWidget";
+import Spectrum from "./components/Spectrum";
 import ChatPanel from "./components/ChatPanel";
 import CameraPanel from "./components/CameraPanel";
 import SystemStats from "./components/SystemStats";
@@ -37,6 +42,11 @@ export default function App() {
   } = useIverson();
 
   const busy = status === "thinking" || status === "speaking";
+  const chatInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.hudTheme;
+  }, [settings.hudTheme]);
 
   const handleUserUtterance = useCallback(
     async (text: string) => {
@@ -115,14 +125,63 @@ export default function App() {
     return <BootSequence onDone={() => setBooted(true)} />;
   }
 
-  return (
-    <div className="h-screen w-screen bg-iverson-bg grid-overlay text-iverson-cyan overflow-hidden flex flex-col">
-      <div className="p-3">
-        <TopBar status={status} onOpenSettings={() => setSettingsOpen(true)} />
-      </div>
+  const nodes: HudNode[] = [
+    { id: "vision", label: "VISION", icon: NodeIcons.vision, active: cameraOn, onClick: () => setCameraOn(!cameraOn) },
+    {
+      id: "comms",
+      label: "COMMS",
+      icon: NodeIcons.comms,
+      active: false,
+      onClick: () => {
+        chatInputRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        chatInputRef.current?.focus({ preventScroll: true });
+      },
+    },
+    {
+      id: "voice",
+      label: "VOICE",
+      icon: NodeIcons.voice,
+      active: wakeWordArmed,
+      disabled: !voice.supported,
+      onClick: () => updateSettings({ wakeWordEnabled: !settings.wakeWordEnabled }),
+    },
+    { id: "config", label: "CONFIG", icon: NodeIcons.config, active: settingsOpen, onClick: () => setSettingsOpen(true) },
+    { id: "lights", label: "LIGHTS", icon: NodeIcons.lights, active: lightsOn, onClick: () => setLightsOn(!lightsOn) },
+    {
+      id: "motion",
+      label: "MOTION",
+      icon: NodeIcons.motion,
+      active: motionEnabled,
+      disabled: !cameraOn,
+      onClick: () => setMotionEnabled(!motionEnabled),
+    },
+  ];
 
-      <div className="flex-1 min-h-0 px-3 pb-3 grid grid-cols-1 lg:grid-cols-[300px_1fr_340px] gap-3">
-        <div className="hidden lg:flex flex-col gap-3 min-h-0">
+  return (
+    <div className="relative min-h-screen lg:h-screen text-iverson-cyan flex flex-col lg:overflow-hidden bg-[rgb(var(--bg))]">
+      <div className="pointer-events-none fixed inset-0 grid-overlay" />
+      <div className="pointer-events-none fixed inset-0 hud-backdrop" />
+
+      <header className="relative safe-top px-3">
+        <TopBar status={status} onOpenSettings={() => setSettingsOpen(true)} />
+      </header>
+
+      <main className="relative flex-1 min-h-0 px-3 pt-3 safe-bottom grid grid-cols-1 lg:grid-cols-[330px_1fr_370px] gap-3">
+        <section className="order-1 lg:order-2 flex flex-col items-center justify-center gap-2 min-h-0">
+          <HudCore
+            status={status}
+            onMicClick={handleMicClick}
+            micActive={voice.manualListening}
+            micSupported={voice.supported}
+            nodes={nodes}
+          />
+          <Spectrum status={status} />
+        </section>
+
+        <aside className="order-2 lg:order-1 flex flex-col gap-3 min-h-0 lg:overflow-y-auto lg:pr-1">
+          <ClockWidget />
+          <WeatherWidget />
+          <SystemStats lightsOn={lightsOn} wakeWordArmed={wakeWordArmed} />
           <CameraPanel
             cameraOn={cameraOn}
             setCameraOn={setCameraOn}
@@ -131,32 +190,12 @@ export default function App() {
             onMotionDetected={handleMotionDetected}
             alerts={motionAlerts}
           />
-          <SystemStats lightsOn={lightsOn} wakeWordArmed={wakeWordArmed} />
-        </div>
+        </aside>
 
-        <div className="flex flex-col items-center justify-center gap-4 min-h-0">
-          <ArcReactor
-            status={status}
-            onMicClick={handleMicClick}
-            micActive={voice.manualListening}
-            micSupported={voice.supported}
-          />
-          <div className="lg:hidden w-full max-w-sm">
-            <CameraPanel
-              cameraOn={cameraOn}
-              setCameraOn={setCameraOn}
-              motionEnabled={motionEnabled}
-              setMotionEnabled={setMotionEnabled}
-              onMotionDetected={handleMotionDetected}
-              alerts={motionAlerts}
-            />
-          </div>
-        </div>
-
-        <div className="min-h-0">
-          <ChatPanel messages={messages} onSend={handleUserUtterance} thinking={status === "thinking"} />
-        </div>
-      </div>
+        <section className="order-3 h-[75vh] lg:h-auto min-h-0">
+          <ChatPanel ref={chatInputRef} messages={messages} onSend={handleUserUtterance} thinking={status === "thinking"} />
+        </section>
+      </main>
 
       <SettingsModal
         open={settingsOpen}

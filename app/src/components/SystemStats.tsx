@@ -4,10 +4,10 @@ type Stat = { label: string; value: number };
 
 export default function SystemStats({ lightsOn, wakeWordArmed }: { lightsOn: boolean; wakeWordArmed: boolean }) {
   const [stats, setStats] = useState<Stat[]>([
-    { label: "CORE LOAD", value: 32 },
-    { label: "NEURAL NET", value: 58 },
-    { label: "NETWORK", value: 74 },
-    { label: "MEMORY", value: 41 },
+    { label: "CORE", value: 32 },
+    { label: "NEURAL", value: 58 },
+    { label: "NET", value: 74 },
+    { label: "MEM", value: 41 },
   ]);
 
   useEffect(() => {
@@ -24,32 +24,57 @@ export default function SystemStats({ lightsOn, wakeWordArmed }: { lightsOn: boo
   }, []);
 
   return (
-    <div className="panel-glass clip-corner p-4">
-      <h2 className="font-hud text-xs tracking-[0.25em] text-iverson-cyan/80 mb-3">SYSTEM DIAGNOSTICS</h2>
-      <div className="space-y-3">
+    <div className="panel-glass hud-frame p-3 sm:p-4">
+      <h2 className="label-hud mb-3">System diagnostics</h2>
+      <div className="grid grid-cols-4 gap-2">
         {stats.map((s) => (
-          <div key={s.label}>
-            <div className="flex justify-between text-[10px] font-mono text-iverson-cyanDim mb-1">
-              <span>{s.label}</span>
-              <span>{s.value}%</span>
-            </div>
-            <div className="h-1.5 bg-iverson-cyan/10 rounded overflow-hidden">
-              <div
-                className="h-full bg-iverson-cyan transition-all duration-700"
-                style={{ width: `${s.value}%` }}
-              />
-            </div>
-          </div>
+          <Gauge key={s.label} {...s} />
         ))}
       </div>
-      <div className="mt-4 flex items-center justify-between text-[10px] font-mono">
-        <span className="text-iverson-cyanDim tracking-widest">SMART LIGHTING</span>
-        <span className={lightsOn ? "text-iverson-green" : "text-iverson-cyanDim"}>{lightsOn ? "ONLINE" : "STANDBY"}</span>
+      <div className="mt-3 space-y-1">
+        <StatusRow label="Smart lighting" on={lightsOn} onText="ONLINE" offText="STANDBY" />
+        <StatusRow label={'Wake word "Iverson"'} on={wakeWordArmed} onText="ARMED" offText="DISARMED" />
       </div>
-      <div className="mt-1 flex items-center justify-between text-[10px] font-mono">
-        <span className="text-iverson-cyanDim tracking-widest">WAKE WORD "IVERSON"</span>
-        <span className={wakeWordArmed ? "text-iverson-green" : "text-iverson-cyanDim"}>{wakeWordArmed ? "ARMED" : "DISARMED"}</span>
+    </div>
+  );
+}
+
+function Gauge({ label, value }: Stat) {
+  const c = 2 * Math.PI * 22;
+  // A 270° gauge: the track leaves a gap at the bottom.
+  const track = c * 0.75;
+  return (
+    <div className="flex flex-col items-center">
+      <div className="relative h-14 w-14 text-iverson-cyan">
+        <svg viewBox="0 0 56 56" className="absolute inset-0 rotate-[135deg]">
+          <circle cx="28" cy="28" r="22" fill="none" stroke="currentColor" strokeOpacity="0.15" strokeWidth="4" strokeDasharray={`${track} ${c}`} strokeLinecap="round" />
+          <circle
+            cx="28"
+            cy="28"
+            r="22"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="4"
+            strokeLinecap="round"
+            strokeDasharray={`${(value / 100) * track} ${c}`}
+            className="glow-stroke transition-[stroke-dasharray] duration-700"
+          />
+        </svg>
+        <span className="absolute inset-0 flex items-center justify-center font-hud text-xs font-bold">{value}</span>
       </div>
+      <span className="font-mono text-[9px] tracking-widest text-iverson-cyanDim mt-0.5">{label}</span>
+    </div>
+  );
+}
+
+function StatusRow({ label, on, onText, offText }: { label: string; on: boolean; onText: string; offText: string }) {
+  return (
+    <div className="flex items-center justify-between text-[10px] font-mono">
+      <span className="text-iverson-cyanDim tracking-widest uppercase">{label}</span>
+      <span className={`flex items-center gap-1.5 ${on ? "text-iverson-accent" : "text-iverson-cyanDim"}`}>
+        <span className={`h-1.5 w-1.5 rounded-full bg-current ${on ? "shadow-[0_0_6px_currentColor]" : ""}`} />
+        {on ? onText : offText}
+      </span>
     </div>
   );
 }

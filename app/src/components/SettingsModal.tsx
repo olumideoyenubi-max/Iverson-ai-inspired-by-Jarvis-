@@ -29,7 +29,7 @@ export default function SettingsModal({
 
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-      <div className="w-full max-w-lg panel-glass clip-corner p-6 max-h-[85vh] overflow-y-auto">
+      <div className="w-full max-w-lg panel-glass hud-frame p-6 bg-[rgb(var(--bg)/0.92)] max-h-[85vh] overflow-y-auto">
         <div className="flex items-center justify-between mb-4">
           <h2 className="font-hud text-lg tracking-[0.2em] text-iverson-cyan text-glow">IVERSON CONFIG</h2>
           <button onClick={onClose} className="text-iverson-cyan/70 hover:text-iverson-cyan text-xl leading-none">
@@ -102,6 +102,29 @@ export default function SettingsModal({
             onChange={(e) => onChange({ model: e.target.value })}
             className="w-full bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan focus:outline-none focus:border-iverson-cyan"
           />
+        </section>
+
+        <section className="mb-5">
+          <h3 className="text-[11px] font-mono tracking-widest text-iverson-cyanDim mb-2">HUD COLOUR</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {(
+              [
+                ["cyan", "Stark cyan", "#4ff3ff"],
+                ["violet", "Arc violet", "#d66eff"],
+              ] as const
+            ).map(([id, label, swatch]) => (
+              <button
+                key={id}
+                onClick={() => onChange({ hudTheme: id })}
+                className={`flex items-center gap-2 rounded border px-3 py-2 text-sm transition ${
+                  settings.hudTheme === id ? "border-iverson-cyan bg-iverson-cyan/10" : "border-iverson-cyan/25 hover:border-iverson-cyan/60"
+                }`}
+              >
+                <span className="h-4 w-4 rounded-full" style={{ background: swatch, boxShadow: `0 0 10px ${swatch}` }} />
+                {label}
+              </button>
+            ))}
+          </div>
         </section>
 
         <section className="mb-5">

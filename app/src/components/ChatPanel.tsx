@@ -1,16 +1,12 @@
-import { useEffect, useRef, useState } from "react";
+import { forwardRef, useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ChatMessage } from "../store/useIverson";
 
-export default function ChatPanel({
-  messages,
-  onSend,
-  thinking,
-}: {
+const ChatPanel = forwardRef<HTMLInputElement, {
   messages: ChatMessage[];
   onSend: (text: string) => void;
   thinking: boolean;
-}) {
+}>(function ChatPanel({ messages, onSend, thinking }, inputRef) {
   const [draft, setDraft] = useState("");
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -27,52 +23,67 @@ export default function ChatPanel({
   };
 
   return (
-    <div className="flex flex-col h-full panel-glass clip-corner p-4">
-      <div className="flex items-center justify-between mb-2">
-        <h2 className="font-hud text-xs tracking-[0.25em] text-iverson-cyan/80">COMMS LOG</h2>
-        <span className="text-[10px] font-mono text-iverson-cyanDim">{messages.length} ENTRIES</span>
+    <div className="flex flex-col h-full panel-glass hud-frame p-3 sm:p-4">
+      <div className="flex items-center justify-between mb-3 pb-2 border-b border-iverson-cyan/15">
+        <h2 className="label-hud">Comms log</h2>
+        <span className="font-mono text-[10px] text-iverson-cyanDim">{messages.length} ENTRIES</span>
       </div>
       <div ref={listRef} className="flex-1 overflow-y-auto space-y-3 pr-1">
-        {messages.map((m) => (
-          <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div
-              className={`max-w-[85%] rounded-md px-3 py-2 text-sm font-medium leading-snug ${
-                m.role === "user"
-                  ? "bg-iverson-amber/10 border border-iverson-amber/40 text-iverson-amber"
-                  : "bg-iverson-cyan/5 border border-iverson-cyan/30 text-iverson-cyan"
-              }`}
-            >
-              <div className="text-[9px] font-mono tracking-widest opacity-60 mb-1">
-                {m.role === "user" ? "YOU" : "IVERSON"} · {new Date(m.ts).toLocaleTimeString()}
+        {messages.map((m) =>
+          m.role === "user" ? (
+            <div key={m.id} className="flex justify-end">
+              <div className="max-w-[85%] rounded-lg rounded-br-sm px-3 py-2 bg-iverson-amber/10 border border-iverson-amber/35 text-iverson-amber">
+                <div className="font-mono text-[9px] tracking-widest opacity-60 mb-0.5 text-right">
+                  YOU · {new Date(m.ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                </div>
+                <p className="text-[15px] font-medium leading-snug">{m.content}</p>
               </div>
-              {m.content}
             </div>
-          </div>
-        ))}
+          ) : (
+            <div key={m.id} className="flex gap-2 items-start">
+              <span className="mt-1 h-6 w-6 shrink-0 rounded-full border border-iverson-cyan/60 flex items-center justify-center shadow-[0_0_10px_rgb(var(--hud)/0.4)]">
+                <span className="h-2 w-2 rounded-full bg-iverson-cyan" />
+              </span>
+              <div className="max-w-[85%] rounded-lg rounded-tl-sm px-3 py-2 bg-iverson-cyan/[0.06] border border-iverson-cyan/25 text-iverson-cyan">
+                <div className="font-mono text-[9px] tracking-widest opacity-60 mb-0.5">
+                  IVERSON · {new Date(m.ts).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}
+                </div>
+                <p className="text-[15px] font-medium leading-snug whitespace-pre-wrap">{m.content}</p>
+              </div>
+            </div>
+          )
+        )}
         {thinking && (
-          <div className="flex justify-start">
-            <div className="rounded-md px-3 py-2 bg-iverson-cyan/5 border border-iverson-cyan/30 flex gap-1 items-center">
-              <span className="h-1.5 w-1.5 rounded-full bg-iverson-cyan dot-anim" style={{ animationDelay: "0s" }} />
-              <span className="h-1.5 w-1.5 rounded-full bg-iverson-cyan dot-anim" style={{ animationDelay: "0.15s" }} />
-              <span className="h-1.5 w-1.5 rounded-full bg-iverson-cyan dot-anim" style={{ animationDelay: "0.3s" }} />
+          <div className="flex gap-2 items-center">
+            <span className="h-6 w-6 shrink-0 rounded-full border border-iverson-amber/60 animate-spin border-t-transparent" />
+            <div className="rounded-lg px-3 py-2 bg-iverson-cyan/[0.06] border border-iverson-cyan/25 flex gap-1 items-center">
+              {[0, 0.15, 0.3].map((d) => (
+                <span key={d} className="h-1.5 w-1.5 rounded-full bg-iverson-cyan dot-anim" style={{ animationDelay: `${d}s` }} />
+              ))}
             </div>
           </div>
         )}
       </div>
       <form onSubmit={submit} className="mt-3 flex gap-2">
         <input
+          ref={inputRef}
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
-          placeholder="Type a command or question…"
-          className="flex-1 bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan placeholder:text-iverson-cyanDim/60 focus:outline-none focus:border-iverson-cyan"
+          placeholder="Ask Iverson anything…"
+          className="flex-1 min-w-0 bg-black/40 border border-iverson-cyan/30 rounded-full px-4 py-2.5 text-[16px] text-iverson-cyan placeholder:text-iverson-cyanDim/70 focus:outline-none focus:border-iverson-cyan focus:shadow-[0_0_12px_rgb(var(--hud)/0.35)] transition"
         />
         <button
           type="submit"
-          className="px-4 rounded border border-iverson-cyan/50 text-iverson-cyan text-xs font-mono tracking-widest hover:bg-iverson-cyan/10 transition"
+          aria-label="Send"
+          className="h-11 w-11 shrink-0 rounded-full border border-iverson-cyan/60 text-iverson-cyan hover:bg-iverson-cyan/15 hover:shadow-[0_0_14px_rgb(var(--hud)/0.5)] transition flex items-center justify-center"
         >
-          SEND
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" className="h-5 w-5">
+            <path d="M5 12h14M13 6l6 6-6 6" />
+          </svg>
         </button>
       </form>
     </div>
   );
-}
+});
+
+export default ChatPanel;

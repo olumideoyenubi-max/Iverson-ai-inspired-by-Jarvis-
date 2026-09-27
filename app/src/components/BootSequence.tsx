@@ -47,7 +47,7 @@ export default function BootSequence({ onDone }: { onDone: () => void }) {
       </div>
       <div className="mt-4 w-72 h-1 bg-iverson-cyan/10 rounded overflow-hidden">
         <div
-          className="h-full bg-iverson-cyan transition-all duration-100 shadow-[0_0_8px_2px_rgba(79,243,255,0.7)]"
+          className="h-full bg-iverson-cyan transition-all duration-100 shadow-[0_0_8px_2px_rgb(var(--hud)/0.7)]"
           style={{ width: `${progress}%` }}
         />
       </div>

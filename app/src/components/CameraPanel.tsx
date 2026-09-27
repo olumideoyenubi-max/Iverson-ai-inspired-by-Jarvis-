@@ -82,9 +82,9 @@ export default function CameraPanel({
   }, [cameraOn, motionEnabled]);
 
   return (
-    <div className={`flex flex-col panel-glass clip-corner p-4 transition ${flash ? "ring-2 ring-iverson-red" : ""}`}>
+    <div className={`flex flex-col panel-glass hud-frame p-3 sm:p-4 transition ${flash ? "ring-2 ring-iverson-red" : ""}`}>
       <div className="flex items-center justify-between mb-2">
-        <h2 className="font-hud text-xs tracking-[0.25em] text-iverson-cyan/80">OPTICAL SENSOR</h2>
+        <h2 className="label-hud">Optical sensor</h2>
         <div className="flex gap-2">
           <button
             onClick={() => setCameraOn(!cameraOn)}
@@ -106,7 +106,7 @@ export default function CameraPanel({
         </div>
       </div>
 
-      <div className="relative aspect-video bg-black/60 rounded overflow-hidden border border-iverson-cyan/20">
+      <div className={`relative ${cameraOn ? "aspect-video" : "h-20"} bg-black/60 rounded overflow-hidden border border-iverson-cyan/20`}>
         {cameraOn ? (
           <video ref={videoRef} muted playsInline className="h-full w-full object-cover opacity-90" />
         ) : (
@@ -140,7 +140,7 @@ export default function CameraPanel({
       )}
 
       <div className="mt-3 flex-1 min-h-[60px] max-h-28 overflow-y-auto">
-        <h3 className="text-[10px] font-mono text-iverson-cyanDim tracking-widest mb-1">MOTION LOG</h3>
+        <h3 className="label-hud mb-1">Motion log</h3>
         {alerts.length === 0 ? (
           <p className="text-[10px] font-mono text-iverson-cyanDim/60">No motion events recorded.</p>
         ) : (

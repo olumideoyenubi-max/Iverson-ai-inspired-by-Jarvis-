@@ -45,6 +45,8 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Iverson uses the camera for vision and motion detection.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Iverson uses your location to show local weather.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Iverson listens for your voice and wake word.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
