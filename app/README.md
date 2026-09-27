@@ -30,3 +30,14 @@ If you are developing a production application, we recommend enabling type-aware
 ```
 
 See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+
+## iOS (Xcode)
+
+The native iOS project lives in `ios/`. Open **`ios/App/App.xcodeproj`** in Xcode, pick a simulator or device, and press Run. Swift Package Manager pulls in Capacitor automatically (no CocoaPods).
+
+After changing the web code, rebuild and copy it into the iOS project:
+
+```bash
+npm install
+npm run ios   # build → cap sync ios → open Xcode
+```
