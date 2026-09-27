@@ -1,3 +1,4 @@
+import Anthropic from "@anthropic-ai/sdk";
 import { runLocalCommand } from "./commands";
 import type { CommandContext } from "./commands";
 import type { IversonSettings } from "./storage";
@@ -18,29 +19,14 @@ export async function think(
   const local = await runLocalCommand(userText, ctx);
   if (local.handled) return local.reply;
 
-  // 2. If an API key is configured, escalate to the real LLM brain.
-  if (settings.apiKey) {
+  // 2. If an API key is configured for the chosen provider, escalate to the real LLM brain.
+  const apiKey = settings.apiKeys[settings.provider];
+  if (apiKey) {
     try {
-      const res = await fetch(settings.apiBaseUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${settings.apiKey}`,
-        },
-        body: JSON.stringify({
-          model: settings.model,
-          messages: [
-            { role: "system", content: SYSTEM_PROMPT },
-            ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
-            { role: "user", content: userText },
-          ],
-          temperature: 0.6,
-          max_tokens: 300,
-        }),
-      });
-      if (!res.ok) throw new Error(`API error ${res.status}`);
-      const data = await res.json();
-      const reply = data?.choices?.[0]?.message?.content?.trim();
+      const reply =
+        settings.provider === "anthropic"
+          ? await askClaude(userText, history, apiKey, settings.model)
+          : await askOpenAICompatible(userText, history, apiKey, settings);
       if (reply) return reply;
       throw new Error("Empty response");
     } catch (err) {
@@ -60,4 +46,78 @@ const GENERIC_FALLBACKS = [
 
 function pickFallback(_userText: string): string {
   return GENERIC_FALLBACKS[Math.floor(Math.random() * GENERIC_FALLBACKS.length)];
+}
+
+async function askOpenAICompatible(
+  userText: string,
+  history: ChatTurn[],
+  apiKey: string,
+  settings: IversonSettings
+): Promise<string | undefined> {
+  const res = await fetch(settings.apiBaseUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: settings.model,
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
+        { role: "user", content: userText },
+      ],
+      temperature: 0.6,
+      max_tokens: 300,
+    }),
+  });
+  if (!res.ok) throw new Error(`API error ${res.status}`);
+  const data = await res.json();
+  return data?.choices?.[0]?.message?.content?.trim();
+}
+
+let claudeClient: { key: string; client: Anthropic } | null = null;
+
+function getClaudeClient(apiKey: string): Anthropic {
+  if (claudeClient?.key !== apiKey) {
+    // The key is the user's own, entered in Settings and kept on this device,
+    // so calling the API straight from the app is intended here.
+    claudeClient = { key: apiKey, client: new Anthropic({ apiKey, dangerouslyAllowBrowser: true }) };
+  }
+  return claudeClient.client;
+}
+
+async function askClaude(
+  userText: string,
+  history: ChatTurn[],
+  apiKey: string,
+  model: string
+): Promise<string | undefined> {
+  const client = getClaudeClient(apiKey);
+  // Haiku 4.5 rejects `effort`; server-side fallbacks apply to Opus 5 / Fable-tier models.
+  const supportsEffort = !model.includes("haiku");
+  const supportsFallbacks = model.startsWith("claude-opus-5") || model.startsWith("claude-fable");
+
+  const response = await client.beta.messages.create({
+    model,
+    max_tokens: 4000,
+    system: SYSTEM_PROMPT,
+    messages: [
+      ...history.slice(-8).map((h) => ({ role: h.role, content: h.content })),
+      { role: "user", content: userText },
+    ],
+    // Short spoken replies: low effort keeps answers quick.
+    ...(supportsEffort ? { output_config: { effort: "low" as const } } : {}),
+    ...(supportsFallbacks
+      ? { betas: ["server-side-fallback-2026-07-01"], fallbacks: "default" as const }
+      : {}),
+  });
+
+  if (response.stop_reason === "refusal") {
+    return "I'm afraid I can't help with that one.";
+  }
+  return response.content
+    .flatMap((block) => (block.type === "text" ? [block.text] : []))
+    .join("")
+    .trim();
 }

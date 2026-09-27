@@ -41,3 +41,17 @@ After changing the web code, rebuild and copy it into the iOS project:
 npm install
 npm run ios   # build → cap sync ios → open Xcode
 ```
+
+## AI replies (ChatGPT, Claude, Gemini, Groq)
+
+Open **Settings → Language model**, pick a provider, paste its API key:
+
+| Provider | Cost | Get a key |
+|---|---|---|
+| ChatGPT (OpenAI) | Paid per use | https://platform.openai.com/api-keys |
+| Claude (Anthropic) | Paid per use | https://console.anthropic.com/settings/keys |
+| Google Gemini | Free tier | https://aistudio.google.com/apikey |
+| Groq | Free tier | https://console.groq.com/keys |
+| Custom | — | Any OpenAI-compatible `/chat/completions` endpoint |
+
+Keys stay on the device and go straight to the provider. Without a key, Iverson still answers its built-in commands.

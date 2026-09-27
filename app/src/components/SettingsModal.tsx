@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { IversonSettings } from "../lib/storage";
+import { PROVIDERS, type ProviderId } from "../lib/providers";
 import { getVoices, isSpeechRecognitionSupported, isSpeechSynthesisSupported } from "../lib/speech";
 
 export default function SettingsModal({
@@ -24,6 +25,8 @@ export default function SettingsModal({
 
   if (!open) return null;
 
+  const provider = PROVIDERS[settings.provider];
+
   return (
     <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <div className="w-full max-w-lg panel-glass clip-corner p-6 max-h-[85vh] overflow-y-auto">
@@ -47,24 +50,52 @@ export default function SettingsModal({
         <section className="mb-5">
           <h3 className="text-[11px] font-mono tracking-widest text-iverson-cyanDim mb-2">LANGUAGE MODEL (OPTIONAL)</h3>
           <p className="text-[11px] text-iverson-cyanDim/80 mb-2">
-            Iverson works offline with a built-in command engine. Add an OpenAI-compatible API key to unlock full
-            conversational reasoning. Your key is stored only in this browser's local storage and sent directly
-            to the API endpoint below — never anywhere else.
+            Iverson works offline with a built-in command engine. Connect ChatGPT, Claude or a free provider to
+            unlock full conversational replies. Your key is stored only on this device and sent directly to the
+            provider — never anywhere else.
+          </p>
+          <label className="text-xs text-iverson-cyan/80 block mb-1">Provider</label>
+          <select
+            value={settings.provider}
+            onChange={(e) => {
+              const id = e.target.value as ProviderId;
+              onChange({ provider: id, apiBaseUrl: PROVIDERS[id].endpoint, model: PROVIDERS[id].defaultModel });
+            }}
+            className="w-full bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan mb-1"
+          >
+            {(Object.keys(PROVIDERS) as ProviderId[]).map((id) => (
+              <option key={id} value={id}>
+                {PROVIDERS[id].label}
+              </option>
+            ))}
+          </select>
+          <p className="text-[11px] text-iverson-cyanDim/80 mb-2">
+            {provider.note}{" "}
+            {provider.keyUrl && (
+              <a href={provider.keyUrl} target="_blank" rel="noreferrer" className="underline text-iverson-cyan">
+                Get a key
+              </a>
+            )}
           </p>
           <label className="text-xs text-iverson-cyan/80 block mb-1">API Key</label>
           <input
             type="password"
-            value={settings.apiKey}
-            onChange={(e) => onChange({ apiKey: e.target.value })}
-            placeholder="sk-…"
+            value={settings.apiKeys[settings.provider] ?? ""}
+            onChange={(e) => onChange({ apiKeys: { ...settings.apiKeys, [settings.provider]: e.target.value.trim() } })}
+            placeholder={provider.keyPlaceholder}
             className="w-full bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan mb-2 focus:outline-none focus:border-iverson-cyan"
           />
-          <label className="text-xs text-iverson-cyan/80 block mb-1">API Endpoint</label>
-          <input
-            value={settings.apiBaseUrl}
-            onChange={(e) => onChange({ apiBaseUrl: e.target.value })}
-            className="w-full bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan mb-2 focus:outline-none focus:border-iverson-cyan"
-          />
+          {settings.provider !== "anthropic" && (
+            <>
+              <label className="text-xs text-iverson-cyan/80 block mb-1">API Endpoint</label>
+              <input
+                value={settings.apiBaseUrl}
+                placeholder="https://…/v1/chat/completions"
+                onChange={(e) => onChange({ apiBaseUrl: e.target.value })}
+                className="w-full bg-black/40 border border-iverson-cyan/30 rounded px-3 py-2 text-sm text-iverson-cyan mb-2 focus:outline-none focus:border-iverson-cyan"
+              />
+            </>
+          )}
           <label className="text-xs text-iverson-cyan/80 block mb-1">Model</label>
           <input
             value={settings.model}

@@ -1,5 +1,11 @@
+import type { ProviderId } from "./providers";
+
 export type IversonSettings = {
-  apiKey: string;
+  provider: ProviderId;
+  /** API key per provider, so switching providers keeps each key. */
+  apiKeys: Partial<Record<ProviderId, string>>;
+  /** Legacy single key from v1 settings; migrated into apiKeys.openai on load. */
+  apiKey?: string;
   apiBaseUrl: string;
   model: string;
   voiceOutputEnabled: boolean;
@@ -13,7 +19,8 @@ const NOTES_KEY = "iverson.notes.v1";
 const LOG_KEY = "iverson.log.v1";
 
 export const defaultSettings: IversonSettings = {
-  apiKey: "",
+  provider: "openai",
+  apiKeys: {},
   apiBaseUrl: "https://api.openai.com/v1/chat/completions",
   model: "gpt-4o-mini",
   voiceOutputEnabled: true,
@@ -26,7 +33,12 @@ export function loadSettings(): IversonSettings {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY);
     if (!raw) return { ...defaultSettings };
-    return { ...defaultSettings, ...JSON.parse(raw) };
+    const merged: IversonSettings = { ...defaultSettings, ...JSON.parse(raw) };
+    if (merged.apiKey && !merged.apiKeys.openai) {
+      merged.apiKeys = { ...merged.apiKeys, openai: merged.apiKey };
+    }
+    delete merged.apiKey;
+    return merged;
   } catch {
     return { ...defaultSettings };
   }
