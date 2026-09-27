@@ -55,3 +55,19 @@ Open **Settings → Language model**, pick a provider, paste its API key:
 | Custom | — | Any OpenAI-compatible `/chat/completions` endpoint |
 
 Keys stay on the device and go straight to the provider. Without a key, Iverson still answers its built-in commands.
+
+## Desktop (Mac, Windows, Linux) and Android
+
+| Platform | Run it | Build it yourself |
+|---|---|---|
+| **Mac** | Unzip `Iverson-…-mac-apple-silicon.zip` (M1–M4) or `…-mac-intel.zip`, drag **Iverson** to Applications. First launch: right-click → **Open** (the app isn't notarized). | `npm run dist:mac` |
+| **Windows** | Run the installer, or unzip `Iverson-…-win.zip` and open `Iverson.exe`. SmartScreen may warn: **More info → Run anyway**. | `npm run dist:win` |
+| **Linux** | `chmod +x Iverson-….AppImage` then run it. | `npm run dist:linux` |
+| **Android** | Install the APK, or open `android/` in Android Studio and press Run. | `npm run android` |
+| **iPhone** | Open `ios/App/App.xcodeproj` in Xcode and press Run. | `npm run ios` |
+
+`npm run desktop` builds and opens the desktop app straight away for testing.
+
+**Automatic builds:** the *Build apps* GitHub workflow builds every platform in the cloud. Open the repo's **Actions** tab → *Build apps* → **Run workflow**, then download the installers from the run's **Artifacts**.
+
+Voice input uses the browser's speech recognition, which the desktop app and the Android app don't have. There, type to Iverson instead; spoken replies still work.

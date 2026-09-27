@@ -4,6 +4,8 @@ import { VitePWA } from "vite-plugin-pwa";
 
 // https://vite.dev/config/
 export default defineConfig({
+  // Relative asset paths so the same build loads from file:// (desktop) and the iOS/Android shells.
+  base: "./",
   plugins: [
     react(),
     VitePWA({

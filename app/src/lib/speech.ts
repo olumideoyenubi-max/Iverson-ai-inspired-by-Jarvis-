@@ -1,5 +1,8 @@
 export function isSpeechRecognitionSupported(): boolean {
-  return typeof window !== "undefined" && !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+  if (typeof window === "undefined") return false;
+  // Electron exposes the API but its Google speech backend isn't available, so it always fails.
+  if (navigator.userAgent.includes("Electron")) return false;
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
 }
 
 export function createRecognition(opts: {

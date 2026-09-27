@@ -34,8 +34,21 @@ function getPosition(): Promise<GeolocationPosition> {
   );
 }
 
+// Desktop builds usually have no GPS location service, so fall back to an
+// approximate location from the IP address. A denied permission is respected.
+async function locate(): Promise<{ latitude: number; longitude: number }> {
+  try {
+    return (await getPosition()).coords;
+  } catch (err) {
+    if ((err as GeolocationPositionError).code === 1) throw err;
+    const ip = await fetch("https://ipapi.co/json/").then((r) => r.json());
+    if (typeof ip.latitude !== "number") throw err;
+    return { latitude: ip.latitude, longitude: ip.longitude };
+  }
+}
+
 async function fetchWeather(): Promise<Weather> {
-  const { latitude, longitude } = (await getPosition()).coords;
+  const { latitude, longitude } = await locate();
   const fahrenheit = usesFahrenheit();
   const params = new URLSearchParams({
     latitude: latitude.toFixed(3),

@@ -1,0 +1,94 @@
+name: Build apps
+
+# Builds Iverson for macOS, Windows, Linux and Android.
+# Run it from the Actions tab ("Run workflow"), or push a tag like v1.0.0.
+# Download the results from the run's "Artifacts" section.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+defaults:
+  run:
+    working-directory: app
+
+jobs:
+  desktop:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            platform: mac
+          - os: windows-latest
+            platform: win
+          - os: ubuntu-latest
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+      - name: Build Windows installer and zip
+        if: matrix.platform == 'win'
+        run: npx electron-builder --win --publish never
+
+      - name: Build Linux AppImage
+        if: matrix.platform == 'linux'
+        run: npx electron-builder --linux --publish never
+
+      # No Apple Developer ID here, so build the app bundles, give them an
+      # ad-hoc signature (required to launch on Apple Silicon), then package.
+      - name: Build macOS app, DMG and zip
+        if: matrix.platform == 'mac'
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: |
+          npx electron-builder --mac dir --arm64 --x64 --publish never
+          for pair in "mac-arm64:apple-silicon" "mac:intel"; do
+            dir="${pair%%:*}"; name="${pair##*:}"
+            codesign --force --deep --sign - "release/$dir/Iverson.app"
+            ditto -c -k --keepParent "release/$dir/Iverson.app" "release/Iverson-mac-$name.zip"
+            hdiutil create -volname Iverson -srcfolder "release/$dir/Iverson.app" -ov -format UDZO "release/Iverson-mac-$name.dmg"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iverson-${{ matrix.platform }}
+          path: |
+            app/release/*.dmg
+            app/release/*.zip
+            app/release/*.exe
+            app/release/*.AppImage
+          if-no-files-found: error
+
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync android
+      - name: Build debug APK
+        working-directory: app/android
+        run: ./gradlew assembleDebug
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iverson-android
+          path: app/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
