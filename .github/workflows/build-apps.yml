@@ -1,11 +1,13 @@
 name: Build apps
 
 # Builds Iverson for macOS, Windows, Linux and Android.
-# Run it from the Actions tab ("Run workflow"), or push a tag like v1.0.0.
+# Runs on every push to main (and this feature branch), on tags like v1.0.0,
+# or manually from the Actions tab ("Run workflow").
 # Download the results from the run's "Artifacts" section.
 on:
   workflow_dispatch:
   push:
+    branches: [main, claude/stoic-hopper-eidkkp]
     tags: ["v*"]
 
 defaults:
