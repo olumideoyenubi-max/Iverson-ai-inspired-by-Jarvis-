@@ -70,6 +70,23 @@ jobs:
             app/release/*.AppImage
           if-no-files-found: error
 
+  # Compiles the iOS app for the simulator (no signing) to catch Swift/plugin problems.
+  ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npx cap sync ios
+      - name: Build for iOS Simulator
+        working-directory: app/ios/App
+        run: xcodebuild -project App.xcodeproj -scheme App -configuration Debug -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build | tail -30
+
   android:
     runs-on: ubuntu-latest
     steps:

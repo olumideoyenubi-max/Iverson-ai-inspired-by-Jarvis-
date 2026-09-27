@@ -79,6 +79,11 @@ export default function App() {
   const voice = useVoicePipeline({
     wakeWordEnabled: settings.wakeWordEnabled,
     paused: busy,
+    getSettings: () => useIverson.getState().settings,
+    onNotice: (message) => {
+      addMessage("assistant", message);
+      setStatus("idle");
+    },
     onWakeTriggered: () => {
       setStatus("listening");
       appendEventLog("Wake word detected.");
@@ -202,6 +207,7 @@ export default function App() {
         onClose={() => setSettingsOpen(false)}
         settings={settings}
         onChange={updateSettings}
+        voiceEngine={voice.engineKind}
       />
     </div>
   );

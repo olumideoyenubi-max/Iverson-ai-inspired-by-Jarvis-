@@ -1,5 +1,5 @@
 // Desktop shell for Iverson: loads the built web app (dist/) in a native window.
-const { app, BrowserWindow, session, shell } = require("electron");
+const { app, BrowserWindow, session, shell, systemPreferences } = require("electron");
 const path = require("node:path");
 
 const ALLOWED_PERMISSIONS = new Set(["media", "geolocation", "notifications", "clipboard-sanitized-write"]);
@@ -28,9 +28,21 @@ function createWindow() {
 
 app.whenReady().then(() => {
   // Camera, microphone and location for the camera panel, voice and weather.
-  session.defaultSession.setPermissionRequestHandler((_wc, permission, callback) =>
-    callback(ALLOWED_PERMISSIONS.has(permission))
-  );
+  session.defaultSession.setPermissionRequestHandler(async (_wc, permission, callback, details) => {
+    if (!ALLOWED_PERMISSIONS.has(permission)) return callback(false);
+    // macOS also needs its own system-level consent for the microphone and camera.
+    if (permission === "media" && process.platform === "darwin") {
+      const types = details.mediaTypes ?? [];
+      for (const type of types) {
+        const kind = type === "video" ? "camera" : "microphone";
+        if (systemPreferences.getMediaAccessStatus(kind) !== "granted") {
+          const ok = await systemPreferences.askForMediaAccess(kind).catch(() => false);
+          if (!ok) return callback(false);
+        }
+      }
+    }
+    callback(true);
+  });
   session.defaultSession.setPermissionCheckHandler((_wc, permission) => ALLOWED_PERMISSIONS.has(permission));
 
   createWindow();

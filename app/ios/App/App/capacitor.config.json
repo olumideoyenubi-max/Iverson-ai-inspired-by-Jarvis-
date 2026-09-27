@@ -6,5 +6,8 @@
 	"ios": {
 		"contentInset": "always"
 	},
-	"packageClassList": []
+	"packageClassList": [
+		"TextToSpeechPlugin",
+		"SpeechRecognitionPlugin"
+	]
 }

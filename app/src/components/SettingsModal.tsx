@@ -1,14 +1,25 @@
 import { useEffect, useState } from "react";
 import type { IversonSettings } from "../lib/storage";
 import { PROVIDERS, type ProviderId } from "../lib/providers";
-import { getVoices, isSpeechRecognitionSupported, isSpeechSynthesisSupported } from "../lib/speech";
+import { getVoices, isSpeechSynthesisSupported } from "../lib/speech";
+import { hasCloudTranscriber } from "../lib/voice";
+import type { VoiceEngine } from "../lib/voice";
+
+const ENGINE_NOTE: Record<VoiceEngine["kind"], string> = {
+  native: "Voice input uses this device's built-in speech recognition.",
+  web: "Voice input uses this browser's built-in speech recognition.",
+  cloud:
+    "Voice input records what you say and turns it into text with Whisper, using your Groq key (free) or OpenAI key from above. With the wake word on, each phrase Iverson hears is sent for transcription.",
+};
 
 export default function SettingsModal({
   open,
   onClose,
   settings,
   onChange,
+  voiceEngine,
 }: {
+  voiceEngine: VoiceEngine["kind"] | null;
   open: boolean;
   onClose: () => void;
   settings: IversonSettings;
@@ -129,6 +140,14 @@ export default function SettingsModal({
 
         <section className="mb-5">
           <h3 className="text-[11px] font-mono tracking-widest text-iverson-cyanDim mb-2">VOICE</h3>
+          <p className="text-[11px] text-iverson-cyanDim/80 mb-2">
+            {voiceEngine ? ENGINE_NOTE[voiceEngine] : "Voice input isn't available on this device — type instead."}
+          </p>
+          {voiceEngine === "cloud" && !hasCloudTranscriber(settings) && (
+            <p className="text-[11px] text-iverson-amber mb-2">
+              Add a Groq key (free) or an OpenAI key above to turn on voice input.
+            </p>
+          )}
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-iverson-cyan/80">Speak replies aloud</span>
             <Toggle
@@ -139,12 +158,12 @@ export default function SettingsModal({
           </div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-iverson-cyan/80">
-              Wake word ("Hey Iverson") {isSpeechRecognitionSupported() ? "" : "— unsupported in this browser"}
+              Wake word ("Hey Iverson")
             </span>
             <Toggle
               checked={settings.wakeWordEnabled}
               onChange={(v) => onChange({ wakeWordEnabled: v })}
-              disabled={!isSpeechRecognitionSupported()}
+              disabled={!voiceEngine}
             />
           </div>
           {voices.length > 0 && (

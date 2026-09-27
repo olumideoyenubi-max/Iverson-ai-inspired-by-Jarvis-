@@ -1,126 +1,96 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { createRecognition, isSpeechRecognitionSupported } from "../lib/speech";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { pickVoiceEngine, VoiceError } from "../lib/voice";
+import type { IversonSettings } from "../lib/storage";
 
 const WAKE_PATTERN = /\b(hey\s+)?iverson\b/i;
+const COMMAND_WAIT_MS = 8000;
 
 export type VoicePipelineOptions = {
   wakeWordEnabled: boolean;
   paused: boolean; // pause everything while assistant is speaking or busy
+  getSettings: () => IversonSettings;
   onWakeTriggered?: () => void;
   onCommand: (text: string) => void;
+  /** Something the user needs to know, e.g. a missing permission or key. */
+  onNotice?: (message: string) => void;
 };
 
 export function useVoicePipeline(opts: VoicePipelineOptions) {
-  const supported = isSpeechRecognitionSupported();
-  const [manualListening, setManualListening] = useState(false);
-  const commandRecRef = useRef<SpeechRecognition | null>(null);
-  const wakeRecRef = useRef<SpeechRecognition | null>(null);
-  const modeRef = useRef<"idle" | "wake" | "command">("idle");
   const optsRef = useRef(opts);
-  optsRef.current = opts;
+  useLayoutEffect(() => {
+    optsRef.current = opts;
+  });
+  const [engine] = useState(() => pickVoiceEngine(() => optsRef.current.getSettings()));
+  const supported = engine !== null;
+
+  const [manualListening, setManualListening] = useState(false);
+  const commandCtrlRef = useRef<AbortController | null>(null);
+
+  const report = useCallback((err: unknown) => {
+    if (err instanceof VoiceError) optsRef.current.onNotice?.(err.message);
+  }, []);
 
   const stopAll = useCallback(() => {
-    commandRecRef.current?.abort();
-    wakeRecRef.current?.abort();
-    modeRef.current = "idle";
+    commandCtrlRef.current?.abort();
+    commandCtrlRef.current = null;
     setManualListening(false);
   }, []);
 
   const startCommandListening = useCallback(() => {
-    if (!supported) return;
-    wakeRecRef.current?.abort();
-    const rec = createRecognition({ continuous: false, interimResults: false, lang: "en-US" });
-    if (!rec) return;
-    commandRecRef.current = rec;
-    modeRef.current = "command";
+    if (!engine) return;
+    commandCtrlRef.current?.abort();
+    const ctrl = new AbortController();
+    commandCtrlRef.current = ctrl;
     setManualListening(true);
-    rec.onresult = (ev) => {
-      const result = ev.results[ev.results.length - 1];
-      const transcript = result?.[0]?.transcript?.trim();
-      if (transcript) optsRef.current.onCommand(transcript);
-    };
-    rec.onerror = () => {
-      setManualListening(false);
-      modeRef.current = "idle";
-    };
-    rec.onend = () => {
-      setManualListening(false);
-      modeRef.current = "idle";
-    };
-    try {
-      rec.start();
-    } catch {
-      /* ignore double-start errors */
-    }
-  }, [supported]);
+    engine
+      .listenOnce({ signal: ctrl.signal, maxWaitMs: COMMAND_WAIT_MS })
+      .then((text) => {
+        if (text && !ctrl.signal.aborted) optsRef.current.onCommand(text);
+      })
+      .catch(report)
+      .finally(() => {
+        if (commandCtrlRef.current === ctrl) {
+          commandCtrlRef.current = null;
+          setManualListening(false);
+        }
+      });
+  }, [engine, report]);
 
-  const startWakeListening = useCallback(() => {
-    if (!supported) return;
-    const rec = createRecognition({ continuous: true, interimResults: false, lang: "en-US" });
-    if (!rec) return;
-    wakeRecRef.current = rec;
-    modeRef.current = "wake";
-    rec.onresult = (ev) => {
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        const transcript = ev.results[i]?.[0]?.transcript ?? "";
-        if (WAKE_PATTERN.test(transcript)) {
-          const remainder = transcript.replace(WAKE_PATTERN, "").trim();
+  // Wake-word loop: listen for one utterance at a time and check it for "Iverson".
+  useEffect(() => {
+    if (!engine || !opts.wakeWordEnabled || opts.paused || manualListening) return;
+    const ctrl = new AbortController();
+    (async () => {
+      while (!ctrl.signal.aborted) {
+        let text = "";
+        try {
+          text = await engine.listenOnce({ signal: ctrl.signal, maxWaitMs: 0 });
+        } catch (err) {
+          if (ctrl.signal.aborted) return;
+          report(err);
+          if (err instanceof VoiceError && err.code !== "network") return;
+          await new Promise((r) => setTimeout(r, 3000));
+          continue;
+        }
+        if (ctrl.signal.aborted) return;
+        if (WAKE_PATTERN.test(text)) {
+          const remainder = text.replace(WAKE_PATTERN, "").replace(/^[\s,.!?]+/, "").trim();
           optsRef.current.onWakeTriggered?.();
-          wakeRecRef.current?.abort();
-          if (remainder.length > 2) {
-            optsRef.current.onCommand(remainder);
-          } else {
-            startCommandListening();
-          }
+          if (remainder.length > 2) optsRef.current.onCommand(remainder);
+          else startCommandListening();
           return;
         }
+        await new Promise((r) => setTimeout(r, 250));
       }
-    };
-    rec.onerror = (ev) => {
-      if (ev.error === "not-allowed" || ev.error === "service-not-allowed") {
-        modeRef.current = "idle";
-        return;
-      }
-      // auto-restart on transient errors
-    };
-    rec.onend = () => {
-      if (modeRef.current === "wake" && optsRef.current.wakeWordEnabled && !optsRef.current.paused) {
-        try {
-          rec.start();
-        } catch {
-          /* noop */
-        }
-      }
-    };
-    try {
-      rec.start();
-    } catch {
-      /* ignore */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [supported, startCommandListening]);
+    })();
+    return () => ctrl.abort();
+  }, [engine, opts.wakeWordEnabled, opts.paused, manualListening, startCommandListening, report]);
 
-  useEffect(() => {
-    if (!supported) return;
-    if (opts.wakeWordEnabled && !opts.paused && modeRef.current === "idle") {
-      startWakeListening();
-    }
-    if ((!opts.wakeWordEnabled || opts.paused) && modeRef.current === "wake") {
-      wakeRecRef.current?.abort();
-      modeRef.current = "idle";
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [opts.wakeWordEnabled, opts.paused, supported]);
-
-  useEffect(() => {
-    return () => {
-      commandRecRef.current?.abort();
-      wakeRecRef.current?.abort();
-    };
-  }, []);
+  useEffect(() => () => commandCtrlRef.current?.abort(), []);
 
   return {
     supported,
+    engineKind: engine?.kind ?? null,
     manualListening,
     startCommandListening,
     stopAll,

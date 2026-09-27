@@ -1,1 +1,10 @@
-[]
+[
+	{
+		"pkg": "@capacitor-community/text-to-speech",
+		"classpath": "com.getcapacitor.community.tts.TextToSpeechPlugin"
+	},
+	{
+		"pkg": "@capgo/capacitor-speech-recognition",
+		"classpath": "app.capgo.speechrecognition.SpeechRecognitionPlugin"
+	}
+]

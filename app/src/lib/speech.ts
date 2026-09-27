@@ -1,3 +1,9 @@
+import { TextToSpeech } from "@capacitor-community/text-to-speech";
+import { getAppPlatform } from "./platform";
+
+// Android's WebView has no speechSynthesis, so replies are spoken with the native TTS engine there.
+const speaksNatively = () => getAppPlatform() === "android";
+
 export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === "undefined") return false;
   // Electron exposes the API but its Google speech backend isn't available, so it always fails.
@@ -21,13 +27,14 @@ export function createRecognition(opts: {
 }
 
 export function isSpeechSynthesisSupported(): boolean {
+  if (speaksNatively()) return true;
   return typeof window !== "undefined" && "speechSynthesis" in window;
 }
 
 let cachedVoices: SpeechSynthesisVoice[] = [];
 
 export function getVoices(): SpeechSynthesisVoice[] {
-  if (!isSpeechSynthesisSupported()) return [];
+  if (speaksNatively() || !isSpeechSynthesisSupported()) return [];
   const voices = window.speechSynthesis.getVoices();
   if (voices.length) cachedVoices = voices;
   return cachedVoices;
@@ -39,6 +46,13 @@ export function speak(
 ) {
   if (!isSpeechSynthesisSupported() || !text) {
     opts.onEnd?.();
+    return;
+  }
+  if (speaksNatively()) {
+    opts.onStart?.();
+    TextToSpeech.speak({ text, lang: "en-US", rate: opts.rate ?? 1.0, pitch: opts.pitch ?? 0.9 })
+      .catch(() => {})
+      .finally(() => opts.onEnd?.());
     return;
   }
   window.speechSynthesis.cancel();
@@ -56,5 +70,6 @@ export function speak(
 }
 
 export function stopSpeaking() {
-  if (isSpeechSynthesisSupported()) window.speechSynthesis.cancel();
+  if (speaksNatively()) TextToSpeech.stop().catch(() => {});
+  else if (isSpeechSynthesisSupported()) window.speechSynthesis.cancel();
 }
