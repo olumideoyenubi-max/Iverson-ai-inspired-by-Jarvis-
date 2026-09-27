@@ -29,6 +29,8 @@ export const nativeEngine: VoiceEngine = {
     return new Promise<string>((resolve) => {
       let latest = "";
       let done = false;
+      // A late "stopped" from the previous session must not end this one.
+      let started = false;
       let quietTimer: ReturnType<typeof setTimeout> | undefined;
       const handles: Promise<{ remove: () => Promise<void> }>[] = [];
 
@@ -57,7 +59,9 @@ export const nativeEngine: VoiceEngine = {
       );
       handles.push(
         SpeechRecognition.addListener("listeningState", (ev) => {
-          if ((ev.state ?? ev.status) === "stopped") finish();
+          const state = ev.state ?? ev.status;
+          if (state === "started" || state === "startingListening") started = true;
+          else if (state === "stopped" && started) finish();
         })
       );
 
