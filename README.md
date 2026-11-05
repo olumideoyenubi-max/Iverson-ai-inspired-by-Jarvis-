@@ -74,3 +74,7 @@ server. Leave it blank to keep using the free, fully offline command engine.
 
 Once installed, Iverson opens in its own window with its own icon, exactly
 like a native desktop/mobile agent.
+
+## License
+
+Copyright © 2026 Olumide Oyenubi. All rights reserved. See [LICENSE](LICENSE).
